@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon id="plugin.video.earthtv_com" version="1.0.0" name="earthTV" provider-name="M. King">
+    <requires>
+        <import addon="xbmc.python" version="2.6.0"/>
+        <import addon="script.module.buggalo" version="1.1.2"/>
+    </requires>
+    <extension point="xbmc.python.pluginsource" library="addon.py">
+        <provides>video</provides>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="en">earthTV</summary>
+        <description lang="en">The earthTV cameras show impressions from different locations: sizzling metropolises, impressive landscapes, famous sights and more.</description>
+        <license>GPL 2.0</license>
+        <platform>all</platform>
+        <language>en</language>
+        <email>mking2203@yahoo.com</email>
+        <website>https://github.com/mking2203/plugin.video.earthtv_com</website>
+        <source>https://github.com/mking2203/plugin.video.earthtv_com</source>
+    </extension>
+</addon>
