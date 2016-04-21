@@ -86,7 +86,7 @@ class EarthTV(object):
             thumb = m.group('img')
             title = m.group('title')
             
-            xbmc.log (title)
+            #xbmc.log (title)
 
             thumb = thumb.replace('//','http://')
         
@@ -188,6 +188,37 @@ class EarthTV(object):
             # load jason  
             jsonData = json.load(r, encoding='utf-8')
             r.close()
+            
+            if(len(jsonData) == 0):
+                xbmc.log('no data, try to load BestOf')
+                channel = 'BestOf'
+        
+                getUrl = 'http://api.earthtv.com/v1/clips?token=%s' % token
+                if(location != None):
+                    getUrl = getUrl + '&location_id=%s' % location
+                    getUrl = getUrl + '&channel=%s' % channel
+                    getUrl = getUrl + '&height=360'
+                    getUrl = getUrl + '&limit=25'
+
+                    req = urllib2.Request(getUrl)
+
+                if(v==1):
+                    req.add_header('Referer', 'http://webcdn.earthtv.com/player/1.40/player.html?v=1.41')
+                    req.add_header('Origin', 'http://webcdn.earthtv.com')
+                if(v==2):
+                    req.add_header('Referer', 'http://playerv2.earthtv.com/?token=%s&autoplay=true&limit=20&location_id=AMS&channel=Latest' % token)
+                    req.add_header('Origin', 'http://playerv2.earthtv.com')
+
+                req.add_header('Accept', 'application/json, text/javascript, */*; q=0.01')
+                req.add_header('Accept-Encoding', 'gzip, deflate')
+                req.add_header('Host', 'api.earthtv.com')
+
+                r = urllib2.urlopen(req)   
+                jsonData = json.load(r, encoding='utf-8')
+                r.close()
+        
+                if(len(jsonData) == 0):
+                    xbmc.log('no data BestOf')
         
             # init playlist
             pl=xbmc.PlayList(1)
@@ -233,7 +264,8 @@ class EarthTV(object):
                         # 1280 x  720    1,8 mbit
                         # 640 x  480     500 - 1,8 mbit (0,55 - 0,8 - 1,8)
                     
-                        if(((quality == '2') & (width == '1920')) | ((quality == '1') & (width == '1280')) | ((quality == '0') & (width == '640') & (bitrate < 700000))):  
+                        # we need a sort of all files to decide, cause 1920 sometimes is not present ..
+                        if(((quality == '2') & (width == '1920')) | ((quality == '1') & (width == '1280')  & (bitrate > 1400000) ) | ((quality == '0') & (width == '640') & (bitrate < 700000))):  
                             cnt = cnt + 1
                             ch = channel.replace('+', ' ')
                             
