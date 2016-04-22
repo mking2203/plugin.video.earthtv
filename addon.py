@@ -251,37 +251,71 @@ class EarthTV(object):
                 strTime = day + '. ' + monthStr + ' / ' + hour + ':' + minute
             
                 aList = jsonData[i]['Files']
+                
+                selWidth = 0
+                selBitr = 0
+                selData= ''
+        
                 for j in range (0, len(aList)):
                     t = aList[j]['Type']
         
-                    if(t == 'Video'):
+                    if(t == 'Video'): 
+                        
                         data = str(aList[j]['File'])
-                        width = str(aList[j]['W'])
-                        height = str(aList[j]['H'])
+                        width = int(aList[j]['W'])
+                        height = int(aList[j]['H'])
                         bitrate = int(aList[j]['Bit'])
        
+                        q = int(quality)
+                        
                         # 1920 x 1080    4   mbit
                         # 1280 x  720    1,8 mbit
                         # 640 x  480     500 - 1,8 mbit (0,55 - 0,8 - 1,8)
                     
-                        # we need a sort of all files to decide, cause 1920 sometimes is not present ..
-                        if(((quality == '2') & (width == '1920')) | ((quality == '1') & (width == '1280')  & (bitrate > 1400000) ) | ((quality == '0') & (width == '640') & (bitrate < 700000))):  
-                            cnt = cnt + 1
-                            ch = channel.replace('+', ' ')
+                        # quality check
+                        if(((q == 2) & (width == 1920)) | ((q >= 1) & (width == 1280)) | (width == 640)):    
+                         
+                            # big size
+                            if(width == 1920):
+                                if(selBitr < bitrate):
+                                    selBitr = bitrate
+                                    selData = data
+                                    selWidth = width
+                            # medium size
+                            if(width == 1280):
+                                # only if we do not have a better file
+                                if(selWidth <= width):
+                                    if(selBitr < bitrate):
+                                        selBitr = bitrate
+                                        selData = data
+                                        selWidth = width
+                            # medium size
+                            if(width == 640):
+                                # only if we do not have a better file
+                                if(selWidth <= width):
+                                    # here we want low resolution
+                                    if((selBitr > bitrate) | (selBitr == 0)):
+                                        selBitr = bitrate
+                                        selData = data
+                                        selWidth = width
+                                                     
+                if(selData != ''):
+                    ch = channel.replace('+', ' ')
                             
-                            listitem = xbmcgui.ListItem(ch + ' %s' % strTime)
-                            url = 'http://cdn.earthtv.com/' + data + '?token=%s' % token
+                    listitem = xbmcgui.ListItem(ch + ' %s' % strTime)
+
+                    listitem.setArt({'thumb': ICON,
+                                     'icon': ICON}) 
+
+                    url = 'http://cdn.earthtv.com/' + selData + '?token=%s' % token
                             
-                            listitem.setInfo('video', {'title': desc, 'genre': 'Webcam'})
+                    listitem.setInfo('video', {'title': desc, 'genre': 'Webcam'})
                             
-                            pl.add(url, listitem)
+                    pl.add(url, listitem)
+                    cnt = cnt + 1
                     
-                            #xbmc.log('Add video : %s' % bitrate)
+                    xbmc.log('Add video %s from %s Bitrate %s' % (cnt,strTime,selBitr))
                     
-                        #xbmc.log (str(aList[j]['W']) + ' / ' + str(aList[j]['H']) + " Bitrate " + str(aList[j]['Bit']))
-                    
-    
-        
             if(cnt != 0):
                 xbmc.Player().play(pl)
             else:
