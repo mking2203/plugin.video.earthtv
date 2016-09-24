@@ -1,3 +1,7 @@
-[B]Version 0.1.0 - 2016-04-21[/B]
+[B]Version 1.0.2 - 2016-09-20[/B]
+- fixed live channel, alternate parsing
+[B]Version 1.0.1 - 2016-09-15[/B]
+- fixed live channel
+[B]Version 1.0.0 - 2016-04-21[/B]
 - pre release (beta)
 

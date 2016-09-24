@@ -109,7 +109,7 @@ class EarthTV(object):
 
         token = ''  
         channel =''
-        location =''
+        location = None
         
         m = None
         v = 0
@@ -126,12 +126,20 @@ class EarthTV(object):
         if(res <> None):
             xbmc.log('Player V2 detected')
             v = 2
-            m = re.search('<iframe.id="player1".*?src="[^\']*token=(?P<token>[^\&]*)[^\>]*location_id=(?P<location>[^\&]*)[^\>]*channel=(?P<channel>[^\"]*)', html, re.DOTALL)
+            #m = re.search('<iframe.id="player1".*?src="[^\']*token=(?P<token>[^\&]*)[^\>]*location_id=(?P<location>[^\&]*)[^\>]*channel=(?P<channel>[^\"]*)', html, re.DOTALL)
+            m = re.search('<iframe.id="player1".*?src="([^\"]*)"', html)
 
         if(m != None):
-            token = m.group('token')
-            channel = m.group('channel')
-            location = m.group('location')
+            u = m.group(1)
+            urlparsed = urlparse.urlparse(u)
+    
+            token = urlparse.parse_qs(urlparsed.query)['token'][0]
+            channel = urlparse.parse_qs(urlparsed.query)['channel'][0]
+
+            if ('location_id' in urlparsed.query):
+                location = urlparse.parse_qs(urlparsed.query)['location_id'][0]
+
+            channel = channel.replace(' ', '+')
     
             xbmc.log ('Token = ' + token)
         
@@ -231,6 +239,9 @@ class EarthTV(object):
                 country = jsonData[i]['Country']
                 city =  jsonData[i]['City']
                 desc = jsonData[i]['Description']
+                
+                dur = jsonData[i]['Dur']
+                iDur = int(dur) / 1000
             
                 if(country == None):
                     country = ''
@@ -302,14 +313,14 @@ class EarthTV(object):
                 if(selData != ''):
                     ch = channel.replace('+', ' ')
                             
-                    listitem = xbmcgui.ListItem(ch + ' %s' % strTime)
+                    listitem = xbmcgui.ListItem(city + ',' + ch + ' %s' % strTime)
 
                     listitem.setArt({'thumb': ICON,
                                      'icon': ICON}) 
 
                     url = 'http://cdn.earthtv.com/' + selData + '?token=%s' % token
                             
-                    listitem.setInfo('video', {'title': desc, 'genre': 'Webcam'})
+                    listitem.setInfo('video', {'plot': desc, 'genre': 'Webcam'})
                             
                     pl.add(url, listitem)
                     cnt = cnt + 1
