@@ -57,7 +57,7 @@ class EarthTV(object):
     def showSelector(self):
     
         xbmc.log('- main selector -')
-                                      
+                                              
         url="http://www.earthtv.com/en/"
         if(SITE== '1'):
             url="http://www.earthtv.com/de/"
@@ -68,280 +68,102 @@ class EarthTV(object):
         elif (SITE == '4'):
             url="http://www.earthtv.com/ar/"
         
-        self.addPictureItem('The World LIVE', PATH + '?categories=%s' % url  + '&quality=%s' % BITR, ICON)
+        # add live channel
+        self.addPictureItem('The World LIVE', PATH + '?categories=%s' % url, ICON)
         
-        #pDialog = xbmcgui.DialogProgressBG()
-        #pDialog.create(ADDON_NAME, 'Get featured channels')
-        #pDialog.update(50, ADDON_NAME)
+        # add next page
+        self.addFolderItem('Next page', PATH + '?page=2')
+          
+        # get channels from page 1
+        url = 'http://www.earthtv.com/de/webcams/1'
         
         u = urllib2.urlopen(url)
         html = u.read()
         u.close()
         
-        p = 0
-        
-        for m in re.finditer('<a.href="(?P<url>[^"]*)"><img.class="lazy".data-original="(?P<img>[^"]*)" alt="(?P<title>[^"]*)"', html, re.DOTALL):
-                        
-            url = 'http://www.earthtv.com' + m.group('url')
-            thumb = m.group('img')
-            title = m.group('title')
-            
-            #xbmc.log (title)
-
-            thumb = thumb.replace('//','http://')
-        
-            self.addPictureItem(title, PATH + '?categories=%s' % url + '&quality=%s' % BITR, thumb)
+        for m in re.finditer('<div.class="place.video-thumb">.*?href="(?P<href>[^\"]*)".*?src="(?P<src>[^\"]*)".*?alt="(?P<alt>[^\"]*)".*?<\/div>', html, re.DOTALL):
+             
+            url = "http://www.earthtv.com" + m.group('href')       
+            thumb = "http:" + m.group('src')
+            title = m.group('alt')        
+             
+            self.addPictureItem(title, PATH + '?categories=%s' % url, thumb)
         
         xbmc.executebuiltin('Container.SetViewMode(%d)' % ThumbnailView)
         xbmcplugin.endOfDirectory(HANDLE)
-        
-        #pDialog.close()
 
-    def showCategory(self, url, quality):
+    def showCategory(self, url):
     
-        xbmc.log('- category - ' + url + ' - ' + quality)       
+        url = url[5:]   
+        url = "http:" + urllib2.quote(url)
         
-        # ------------------ get page --------------------------
+        xbmc.log('- category - ' + url) 
         
         u = urllib2.urlopen(url)
         html = u.read()
         u.close()
-
-        token = ''  
-        channel =''
-        location = None
         
-        m = None
-        v = 0
-        
-        # ------------------ get token --------------------------
-
-        res = re.search('webcdn.earthtv.com/player/1.4',html)
-        if(res <> None):
-            xbmc.log('Player V1.4 detected')
-            v = 1
-            m = re.search('home_url:.\'.*?\'.*?token:.\'(?P<token>[^\']*)\'.*?language:.\'(?P<language>[^\']*)\'(.*?location:.\'(?P<location>[^\']*)\')?.*?channel:.\'(?P<channel>[^\']*)\'', html, re.DOTALL)
-    
-        res = re.search('playerv2.earthtv.com',html)
-        if(res <> None):
-            xbmc.log('Player V2 detected')
-            v = 2
-            #m = re.search('<iframe.id="player1".*?src="[^\']*token=(?P<token>[^\&]*)[^\>]*location_id=(?P<location>[^\&]*)[^\>]*channel=(?P<channel>[^\"]*)', html, re.DOTALL)
-            m = re.search('<iframe.id="player1".*?src="([^\"]*)"', html)
-
-        if(m != None):
-            u = m.group(1)
-            urlparsed = urlparse.urlparse(u)
-    
-            token = urlparse.parse_qs(urlparsed.query)['token'][0]
-            channel = urlparse.parse_qs(urlparsed.query)['channel'][0]
-
-            if ('location_id' in urlparsed.query):
-                location = urlparse.parse_qs(urlparsed.query)['location_id'][0]
-
-            channel = channel.replace(' ', '+')
-    
-            xbmc.log ('Token = ' + token)
-        
-            if(token == ''):
-                xbmcgui.Dialog().ok(ADDON_NAME, 'No token', '', '') 
-                return
-        
-            # ------------------ get season parameter --------------------------
-        
-            req = urllib2.Request('http://api.earthtv.com/v1/me?token=%s' % token)
-            if(v==1):
-                req.add_header('Referer', 'http://webcdn.earthtv.com/player/1.40/player.html?v=1.41')
-                req.add_header('Origin', 'http://webcdn.earthtv.com')
-            if(v==2):    
-                req.add_header('Referer', 'http://playerv2.earthtv.com/?token=%s&autoplay=true&limit=20&location_id=AMS&channel=Latest' % token) 
-                req.add_header('Origin', 'http://playerv2.earthtv.com')
-
-            req.add_header('Accept', 'application/json, text/javascript, */*; q=0.01')
-            req.add_header('Accept-Encoding', 'gzip, deflate')
-            req.add_header('Host', 'api.earthtv.com')
-
-            r = urllib2.urlopen(req)
-            html = r.read()
-            r.close()
-
-            xbmc.log('Received session parameter')
-        
-            # ------------------ get clips --------------------------
-        
-            getUrl = 'http://api.earthtv.com/v1/clips?token=%s' % token
-            
-            if(location != None):
-                getUrl = getUrl + '&location_id=%s' % location
-            
-            getUrl = getUrl + '&channel=%s' % channel
-            getUrl = getUrl + '&limit=20'
-            #getUrl = getUrl + '&language=de_DE'
-
-            req = urllib2.Request(getUrl)
-
-            if(v==1):
-                req.add_header('Referer', 'http://webcdn.earthtv.com/player/1.40/player.html?v=1.41')
-                req.add_header('Origin', 'http://webcdn.earthtv.com')
-            if(v==2):
-                req.add_header('Referer', 'http://playerv2.earthtv.com/?token=%s' % token)
-                req.add_header('Origin', 'http://playerv2.earthtv.com')
-
-            req.add_header('Accept', 'application/json, text/javascript, */*; q=0.01')
-            req.add_header('Accept-Encoding', 'gzip, deflate')
-            req.add_header('Host', 'api.earthtv.com')
-
-            r = urllib2.urlopen(req)
-                        
-            # load jason  
-            jsonData = json.load(r, encoding='utf-8')
-            r.close()
-            
-            if(len(jsonData) == 0):
-                xbmc.log('no data, try to load BestOf')
-                channel = 'BestOf'
-        
-                getUrl = 'http://api.earthtv.com/v1/clips?token=%s' % token
-                if(location != None):
-                    getUrl = getUrl + '&location_id=%s' % location
-                    getUrl = getUrl + '&channel=%s' % channel
-                    getUrl = getUrl + '&height=360'
-                    getUrl = getUrl + '&limit=25'
-
-                    req = urllib2.Request(getUrl)
-
-                if(v==1):
-                    req.add_header('Referer', 'http://webcdn.earthtv.com/player/1.40/player.html?v=1.41')
-                    req.add_header('Origin', 'http://webcdn.earthtv.com')
-                if(v==2):
-                    req.add_header('Referer', 'http://playerv2.earthtv.com/?token=%s&autoplay=true&limit=20&location_id=AMS&channel=Latest' % token)
-                    req.add_header('Origin', 'http://playerv2.earthtv.com')
-
-                req.add_header('Accept', 'application/json, text/javascript, */*; q=0.01')
-                req.add_header('Accept-Encoding', 'gzip, deflate')
-                req.add_header('Host', 'api.earthtv.com')
-
-                r = urllib2.urlopen(req)   
-                jsonData = json.load(r, encoding='utf-8')
-                r.close()
-        
-                if(len(jsonData) == 0):
-                    xbmc.log('no data BestOf')
-        
-            # init playlist
-            pl=xbmc.PlayList(1)
-            pl.clear()
-        
-            cnt = 0
-        
-            for i in range (0, len(jsonData)):
-                
-                country = jsonData[i]['Country']
-                city =  jsonData[i]['City']
-                desc = jsonData[i]['Description']
-                
-                dur = jsonData[i]['Dur']
-                iDur = int(dur) / 1000
-            
-                if(country == None):
-                    country = ''
-                if(city == None):
-                    city=''
-    
-                # 2016-04-20T11:44:59+00:00
-                atime = str(jsonData[i]['LoT'])
-            
-                month = atime[5:-18]
-                day = atime[8:-15]
-                hour = atime[11:-12]
-                minute = atime[14:-9]
-            
-                monthInt = int(month)
-                monthStr = calendar.month_name[monthInt] 
-            
-                strTime = day + '. ' + monthStr + ' / ' + hour + ':' + minute
-            
-                aList = jsonData[i]['Files']
-                
-                selWidth = 0
-                selBitr = 0
-                selData= ''
-        
-                for j in range (0, len(aList)):
-                    t = aList[j]['Type']
-        
-                    if(t == 'Video'): 
-                        
-                        data = str(aList[j]['File'])
-                        width = int(aList[j]['W'])
-                        height = int(aList[j]['H'])
-                        bitrate = int(aList[j]['Bit'])
-       
-                        q = int(quality)
-                        
-                        # 1920 x 1080    4   mbit
-                        # 1280 x  720    1,8 mbit
-                        # 640 x  480     500 - 1,8 mbit (0,55 - 0,8 - 1,8)
-                    
-                        # quality check
-                        if(((q == 2) & (width == 1920)) | ((q >= 1) & (width == 1280)) | (width == 640)):    
+        m = re.search('<iframe.id="player1"[^>]*src="[^\"]*token=(?P<token>[^&]*)[^\"]*channel=(?P<channel>[^&]*)[^\"]*livesd=(?P<url>[^&\"]*)', html) 
+        if(m != None): 
+            token = m.group('token')
+            channel = m.group('channel')
+            url = m.group('url')
                          
-                            # big size
-                            if(width == 1920):
-                                if(selBitr < bitrate):
-                                    selBitr = bitrate
-                                    selData = data
-                                    selWidth = width
-                            # medium size
-                            if(width == 1280):
-                                # only if we do not have a better file
-                                if(selWidth <= width):
-                                    if(selBitr < bitrate):
-                                        selBitr = bitrate
-                                        selData = data
-                                        selWidth = width
-                            # medium size
-                            if(width == 640):
-                                # only if we do not have a better file
-                                if(selWidth <= width):
-                                    # here we want low resolution
-                                    if((selBitr > bitrate) | (selBitr == 0)):
-                                        selBitr = bitrate
-                                        selData = data
-                                        selWidth = width
-                                                     
-                if(selData != ''):
-                    ch = channel.replace('+', ' ')
-                            
-                    listitem = xbmcgui.ListItem(city + ',' + ch + ' %s' % strTime)
-
-                    listitem.setArt({'thumb': ICON,
-                                     'icon': ICON}) 
-
-                    url = 'http://cdn.earthtv.com/' + selData + '?token=%s' % token
-                            
-                    listitem.setInfo('video', {'plot': desc, 'genre': 'Webcam'})
-                            
-                    pl.add(url, listitem)
-                    cnt = cnt + 1
-                    
-                    xbmc.log('Add video %s from %s Bitrate %s' % (cnt,strTime,selBitr))
-                    
-            if(cnt != 0):
-                xbmc.Player().play(pl)
-            else:
-                xbmcgui.Dialog().ok(ADDON_NAME, 'Nothing to play', '', '') 
+            listitem =xbmcgui.ListItem (channel)
+            listitem.setInfo('video', {'Title': channel})
+             
+            xbmc.log('- file - ' + url) 
+            
+            xbmc.Player().play(url, listitem)
+        else:
+            xbmcgui.Dialog().ok(ADDON_NAME, 'Nothing to play', '', '') 
         
-        else:        
-            xbmcgui.Dialog().ok(ADDON_NAME, 'No player found', '', '') 
+    def showPage(self, page):
+    
+        xbmc.log('- page - ' + page) 
+        
+        i = int(page)    
+        i = i + 1
+        
+        # add next page
+        self.addFolderItem('Next page', PATH + '?page=' +str(i))
+        
+  
+        # get channels from page x
+        
+        url="http://www.earthtv.com/en/"
+        if(SITE== '1'):
+            url="http://www.earthtv.com/de/"
+        elif (SITE == '2'):
+            url="http://www.earthtv.com/fr/"
+        elif (SITE == '3'):
+            url="http://www.earthtv.com/ru/"
+        elif (SITE == '4'):
+            url="http://www.earthtv.com/ar/"
+            
+        url = url + "webcams/" + page
+        
+        u = urllib2.urlopen(url)
+        html = u.read()
+        u.close()
+        
+        for m in re.finditer('<div.class="place.video-thumb">.*?href="(?P<href>[^\"]*)".*?src="(?P<src>[^\"]*)".*?alt="(?P<alt>[^\"]*)".*?<\/div>', html, re.DOTALL):
+             
+            url = "http://www.earthtv.com" + m.group('href')       
+            thumb = "http:" + m.group('src')
+            title = m.group('alt')        
+             
+            self.addPictureItem(title, PATH + '?categories=%s' % url, thumb)
+        
+        xbmc.executebuiltin('Container.SetViewMode(%d)' % ThumbnailView)
+        xbmcplugin.endOfDirectory(HANDLE)
 
 
 #### some functions ####
 
     def addFolderItem(self, title, url):
         list_item = xbmcgui.ListItem(label=title)
-        list_item.addContextMenuItems([ (ADDON.getLocalizedString(30160), 'Action(ParentDir)') ])
-        xbmcplugin.addDirectoryItem(HANDLE, url, list_item, False)
+        xbmcplugin.addDirectoryItem(HANDLE, url, list_item, True)
         
     def addPictureItem(self, title, url, thumb):
     
@@ -381,13 +203,14 @@ if __name__ == '__main__':
         DEBUG_HTML = True
        
     SITE = xbmcplugin.getSetting(HANDLE, 'siteVersion')    
-    BITR = xbmcplugin.getSetting(HANDLE, 'maxBitrate')
 
 try:
         iArchive = EarthTV()
             
         if PARAMS.has_key('categories'):
-            iArchive.showCategory(PARAMS['categories'][0], PARAMS['quality'][0])
+            iArchive.showCategory(PARAMS['categories'][0])
+        elif PARAMS.has_key('page'):
+            iArchive.showPage(PARAMS['page'][0])
         else:
             iArchive.showSelector()
 except Exception:

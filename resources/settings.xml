@@ -1,7 +1,6 @@
 <settings>
     <category label="30001">
         <setting id="siteVersion" type="enum" label="30101" values="UK|DE|FR|RU|AR" default="0"/>
-        <setting id="maxBitrate" type="enum" label="30102" values="640p@700kb|1080p@1800kb|1920p@4000kb" default="1"/>
         <setting type="sep" />
         <setting id="debug" type="bool" label="30120" default="false"/>
     </category>
