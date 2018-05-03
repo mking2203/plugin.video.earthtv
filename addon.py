@@ -1,7 +1,9 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 #  earthTV Addon
 #
-#      Copyright (C) 2016
-#      http://
+#      Copyright (C) 2018 Mark Koenig
 #
 #  This Program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -32,18 +34,14 @@ import buggalo
 
 import json
 
-import datetime
-import calendar
-
 import xbmc
 import xbmcgui
 import xbmcaddon
 import xbmcplugin
 
-from xml.dom.minidom import parse, parseString
-
 CommonRootView = 50
 FullWidthList = 51
+InfoWall = 54
 ThumbnailView = 500
 MediaListView2 = 503
 MediaListView3 = 504
@@ -62,39 +60,53 @@ class EarthTV(object):
         xbmc.log('- main selector -')
         xbmcplugin.setContent(HANDLE, 'movies')
 
-        url="http://www.earthtv.com/en/"
-        if(SITE== '1'):
-            url="http://www.earthtv.com/de/"
-        elif (SITE == '2'):
-            url="http://www.earthtv.com/fr/"
-        elif (SITE == '3'):
-            url="http://www.earthtv.com/ru/"
-        elif (SITE == '4'):
-            url="http://www.earthtv.com/ar/"
-
         # add live channel
-        self.addPictureItem('The World LIVE', PATH + '?categories=%s' % url, ICON)
+        self.addPictureItem('The World LIVE', PATH + '?categories=%s' % (BASEURL + COUNTRY), ICON)
+        # Main channels
+        self.addFolderItem('Webcams', PATH + '?region=' + COUNTRY + 'webcams' '&page=1')
+
+        r = requests.get((BASEURL + COUNTRY) + 'webcams')
+        if r.status_code == requests.codes.ok:
+            # page is loaded
+            result = r.text
+
+            data = '<ul.class="dropdown-menu".*?>(.*?)<.ul'
+            match = re.search(data, result)
+            if(match != None):
+                data = '<a.href="(.*?)">(.*?)<'
+                matches = re.finditer(data, match.group(0))
+                if(matches != None):
+                    for match in matches:
+                        self.addFolderItem(match.group(2), PATH + '?region=' + match.group(1) + '&page=1')
+
+        xbmc.executebuiltin('Container.SetViewMode(%d)' % InfoWall)
+        xbmcplugin.endOfDirectory(HANDLE)
+
+    def showRegion(self, region, page):
+
+        xbmc.log('- show region -')
+        xbmcplugin.setContent(HANDLE, 'movies')
+
+        no = int(page)
 
         # add next page
-        self.addFolderItem('Next page', PATH + '?page=2')
+        self.addFolderItem('Next page', PATH + '?region=' + region + '&page=' + str(no + 1))
 
-        # get channels from page 1
-        url = 'http://www.earthtv.com/de/webcams/1'
+        # get channels
+        urlpage = BASEURL + region + '/' + page
+        xbmc.log("earthTV: %s" % urlpage, level=xbmc.LOGNOTICE)
 
-        u = urllib2.urlopen(url)
+        u = urllib2.urlopen(urlpage)
         html = u.read()
         u.close()
 
         for m in re.finditer('<div.class="place.video-thumb">.*?href="(?P<href>[^\"]*)".*?src="(?P<src>[^\"]*)".*?alt="(?P<alt>[^\"]*)".*?<\/div>', html, re.DOTALL):
-
             url = "http://www.earthtv.com" + m.group('href')
             thumb = "http:" + m.group('src')
             title = m.group('alt')
-
             self.addPictureItem(title, PATH + '?categories=%s' % url, thumb)
 
-        #xbmc.executebuiltin('Container.SetViewMode(%d)' % ThumbnailView)
-        xbmc.executebuiltin('Container.SetViewMode(%d)' % PictureWrapView)
+        xbmc.executebuiltin('Container.SetViewMode(%d)' % InfoWall)
         xbmcplugin.endOfDirectory(HANDLE)
 
     def showCategory(self, url):
@@ -210,45 +222,10 @@ class EarthTV(object):
                                                         break
                                     else:
                                         cnt = 3
-
-    def showPage(self, page):
-
-        xbmc.log('- page - ' + page)
-
-        i = int(page)
-        i = i + 1
-
-        # add next page
-        self.addFolderItem('Next page', PATH + '?page=' +str(i))
-
-        # get channels from page x
-        url="http://www.earthtv.com/en/"
-        if(SITE== '1'):
-            url="http://www.earthtv.com/de/"
-        elif (SITE == '2'):
-            url="http://www.earthtv.com/fr/"
-        elif (SITE == '3'):
-            url="http://www.earthtv.com/ru/"
-        elif (SITE == '4'):
-            url="http://www.earthtv.com/ar/"
-
-        url = url + "webcams/" + page
-
-        u = urllib2.urlopen(url)
-        html = u.read()
-        u.close()
-
-        for m in re.finditer('<div.class="place.video-thumb">.*?href="(?P<href>[^\"]*)".*?src="(?P<src>[^\"]*)".*?alt="(?P<alt>[^\"]*)".*?<\/div>', html, re.DOTALL):
-
-            url = "http://www.earthtv.com" + m.group('href')
-            thumb = "http:" + m.group('src')
-            title = m.group('alt')
-
-            self.addPictureItem(title, PATH + '?categories=%s' % url, thumb)
-
-        xbmc.executebuiltin('Container.SetViewMode(%d)' % ThumbnailView)
-        xbmcplugin.endOfDirectory(HANDLE)
-
+                        else:
+                            xbmcgui.Dialog().notification(ADDON_NAME, 'Sorry, no PLAYLIST', time=3000)
+                    else:
+                        xbmcgui.Dialog().notification(ADDON_NAME, 'Sorry, no DATA', time=3000)
 
 #### some functions ####
 
@@ -298,14 +275,25 @@ if __name__ == '__main__':
 
     SITE = xbmcplugin.getSetting(HANDLE, 'siteVersion')
 
-try:
+    BASEURL='http://www.earthtv.com'
+    COUNTRY = '/en/'
+    if(SITE== '1'):
+        COUNTRY='/de/'
+    elif (SITE == '2'):
+        COUNTRY='/fr/'
+    elif (SITE == '3'):
+        COUNTRY='/ru/'
+    elif (SITE == '4'):
+        COUNTRY='/ar/'
+
+    try:
         iArchive = EarthTV()
 
         if PARAMS.has_key('categories'):
             iArchive.showCategory(PARAMS['categories'][0])
-        elif PARAMS.has_key('page'):
-            iArchive.showPage(PARAMS['page'][0])
+        elif PARAMS.has_key('region'):
+            iArchive.showRegion(PARAMS['region'][0],PARAMS['page'][0] )
         else:
             iArchive.showSelector()
-except Exception:
-    buggalo.onExceptionRaised()
+    except Exception:
+        buggalo.onExceptionRaised()
