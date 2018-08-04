@@ -21,6 +21,11 @@ if __name__ == '__main__':
     #set video path
     __videoPath = os.path.join(__profilePath, "video.ts")
 
+    #set length
+    CHUNKS = 45 # 3 min 40 mb
+    CHUNKS = 60 # 4 min 52 mb
+    CHUNKS = 75 # 5 min 64 mb
+
     while not monitor.abortRequested():
         # Sleep/wait for abort for 1 second
         if monitor.waitForAbort(1):
@@ -36,7 +41,7 @@ if __name__ == '__main__':
 
         # check if we need to start dl
         if(url <> '') and (start<>''):
-            end = int(start) + 30
+            end = int(start) + CHUNKS
             xbmc.log("earthTV: %s" % 'start dl video', level=xbmc.LOGNOTICE)
 
             with open(__videoPath, 'wb') as out_file:

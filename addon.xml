@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<addon id="plugin.video.earthtv_com" version="1.0.6" name="earthTV" provider-name="M. Koenig">
+<addon id="plugin.video.earthtv" version="1.0.7" name="earthTV" provider-name="M. Koenig">
     <requires>
         <import addon="xbmc.python" version="2.14.0"/>
         <import addon="script.module.requests" version="2.9.1"/>
@@ -18,5 +18,13 @@
         <email>mark.koenig@kleiner-schelm.de</email>
         <website>https://github.com/mking2203/plugin.video.earthtv_com</website>
         <source>https://github.com/mking2203/plugin.video.earthtv_com</source>
+        <assets>
+            <icon>icon.png</icon>
+            <screenshot>resources/screenshot000.jpg</screenshot>
+            <screenshot>resources/screenshot001.jpg</screenshot>
+            <screenshot>resources/screenshot002.jpg</screenshot>
+            <screenshot>resources/screenshot003.jpg</screenshot>
+            <screenshot>resources/screenshot004.jpg</screenshot>
+        </assets>
     </extension>
 </addon>
