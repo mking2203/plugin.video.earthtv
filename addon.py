@@ -172,7 +172,7 @@ class EarthTV(object):
 
     def play(self, url):
 
-        url = url[5:]
+        url = url[6:]
         url = "http:" + urllib2.quote(url)
 
         xbmc.log("earthTV: play URL %s" % url, level=xbmc.LOGNOTICE)
@@ -281,12 +281,11 @@ class EarthTV(object):
 
     def playLive(self, url):
 
+        xbmc.log("earthTV: show URL %s" % url, level=xbmc.LOGNOTICE)
         xbmc.executebuiltin("ActivateWindow(busydialog)")
 
-        url = url[5:]
-        url = "http:" + urllib2.quote(url)
-
-        xbmc.log("earthTV: show URL %s" % url, level=xbmc.LOGNOTICE)
+        url = url[6:]
+        url = "https:" + urllib2.quote(url)
 
         #stop buffering
         xbmcgui.Window(10000).setProperty('earthURL','')
@@ -297,125 +296,43 @@ class EarthTV(object):
 
         xbmcgui.Dialog().notification(ADDON_NAME, 'Query link', time=1000)
 
+
+        url = 'https://www.earthtv.com/de'
+
         r = requests.get(url)
         if r.status_code == requests.codes.ok:
             result = r.text
-            xbmc.log("earthTV: %s" % 'get page', level=xbmc.LOGNOTICE)
 
-            # find referer
-            s1 = '<meta.itemprop="embedURL".content="(.*?)"'
-            match = re.search(s1,result)
+            s1 = 'onEtvApiReady.*?token.*?\'(.*?)\''
+            match = re.search(s1,result, re.DOTALL)
             if match is not None:
-                ref = match.group(1)
-                xbmcgui.Window(10000).setProperty('earthRef', ref)
+                token = match.group(1)
 
-                xbmc.log("earthTV: %s" % 'find referer', level=xbmc.LOGNOTICE)
+                xbmc.log("earthTV: token %s" % token, level=xbmc.LOGNOTICE)
 
-                #find playlist
-                playlist = '<iframe.*?src="(.*?)"'
-                match = re.search(playlist, result)
-                if match is not None:
-                    xbmc.log("earthTV: %s" % 'find playlist', level=xbmc.LOGNOTICE)
+                r = requests.get('https://dapi-de.earthtv.com/api/v1/media.getPlayerConfig?playerToken=' +  token)
+                if r.status_code == requests.codes.ok:
+                    result = r.text
 
-                    # find data
-                    data = 'token=(?P<token>.*?)&.*?livesd=(?P<url>.*?)"'
-                    match = re.search(data, match.group(0))
+                    jObj = json.loads(result)
+                    playlist = jObj['streamUris']['hls']
 
-                    if(match != None):
-                        xbmc.log("earthTV: %s" % 'find data', level=xbmc.LOGNOTICE)
+                    xbmc.log("earthTV: playlist %s" % playlist, level=xbmc.LOGNOTICE)
 
-                        url = match.group('url')
-                        baseurl = url[:url.rfind('/')+1]
+                    # init playlist
+                    pl = xbmc.PlayList(1)
+                    pl.clear()
 
-                        header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:54.0) Gecko/20100101 Firefox/54.0',
-                                  'Referer': ref,
-                                  'Origin': 'http://playercdn.earthtv.com'}
+                    playitem = xbmcgui.ListItem(path=playlist)
+                    playitem.setProperty('inputstreamaddon', 'inputstream.adaptive')
+                    playitem.setProperty('inputstream.adaptive.manifest_type', 'hls')
 
-                        try:
-                            r = requests.get(url, headers=header, timeout=3)
-                            if r.status_code == requests.codes.ok:
-                                playlist = r.text
-                                xbmc.log("earthTV: %s" % 'load playlist', level=xbmc.LOGNOTICE)
+                    playitem.setContentLookup(False)
 
-                                chunk = None
-                                cnt = 0
+                    pl.add(playlist,playitem)
 
-                                # now we try to grab chunk list, sites are nested
-                                while chunk is None and cnt < 3:
-                                    chunkline = None
-                                    cnt = cnt + 1
+                    xbmc.Player().play(pl)
 
-                                    lines = playlist.split('\n')
-                                    for line in lines:
-                                         if(not line.startswith('#')):
-                                            chunkline = line
-                                            break
-
-                                    if(chunkline != None):
-                                        xbmc.log("earthTV: %s" % 'get chunklist', level=xbmc.LOGNOTICE)
-
-                                        #chunklist = 'http://cdn.liveonearth.com/cdnedge/smil:TWL-en.smil/' + chunkline
-                                        chunklist = baseurl + chunkline
-
-                                        header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:54.0) Gecko/20100101 Firefox/54.0',
-                                                  'Referer': ref,
-                                                  'Origin': 'http://playercdn.earthtv.com',
-                                                  'Accept': '*/*',
-                                                  'Accept-Encoding': 'gzip, deflate',
-                                                  'Accept-Language': 'de,en-US;q=0.7,en;q=0.3'
-                                                 }
-
-                                        r=requests.get(chunklist, headers=header)
-                                        if r.status_code == requests.codes.ok:
-                                            playlist = r.text
-
-                                            if('EXT-X-MEDIA-SEQUENCE' in playlist):
-                                                # list contains sequence
-                                                chunk = playlist
-                                                seqstart = ''
-
-                                                lines = playlist.split('\n')
-                                                for line in lines:
-                                                    if(line.startswith('#EXT-X-MEDIA-SEQUENCE:')):
-                                                        seqstart = line[22:]
-                                                        xbmcgui.Window(10000).setProperty('earthSeq', seqstart)
-                                                        xbmc.log("earthTV: %s" % 'sequence found ' +str(seqstart), level=xbmc.LOGNOTICE)
-                                                        break
-
-                                                if(seqstart <> ''):
-                                                    for line in lines:
-                                                        if(not line.startswith('#') and (len(line)>10)):
-                                                            xbmcgui.Window(10000).setProperty('earthURL', baseurl + line)
-                                                            xbmc.log("earthTV: %s" % 'start buffering', level=xbmc.LOGNOTICE)
-
-                                                            xbmcgui.Dialog().notification(ADDON_NAME, 'Buffering', time=3000)
-                                                            xbmc.sleep(3000)
-
-                                                            # init playlist
-                                                            pl = xbmc.PlayList(1)
-                                                            pl.clear()
-
-                                                            listitem = xbmcgui.ListItem('Live TV')
-                                                            listitem.setInfo('video', { 'plot': 'Live TV channel' })
-                                                            listitem.setArt({'thumb': ICON})
-
-                                                            pl.add(VID, listitem)
-                                                            xbmc.Player().play(pl)
-
-                                                            #xbmc.Player().play(VID)
-
-                                                            break
-                                        else:
-                                            xbmc.log("earthTV: %s" % 'web response ' + str(r.status_code), level=xbmc.LOGNOTICE)
-                                            cnt = 3
-                            else:
-                                xbmcgui.Dialog().notification(ADDON_NAME, 'Sorry, no PLAYLIST', time=3000)
-                        except:
-                            xbmcgui.Dialog().notification(ADDON_NAME, 'Sorry, server has no PLAYLIST', time=3000)
-                    else:
-                        xbmcgui.Dialog().notification(ADDON_NAME, 'Sorry, no DATA', time=3000)
-
-        xbmc.executebuiltin("Dialog.Close(busydialog)")
 
 #### some functions ####
 
@@ -468,7 +385,8 @@ if __name__ == '__main__':
 
     SITE = xbmcplugin.getSetting(HANDLE, 'siteVersion')
 
-    BASEURL='http://www.earthtv.com'
+    BASEURL='https://www.earthtv.com'
+
     COUNTRY = '/en/'
     if(SITE== '1'):
         COUNTRY='/de/'
