@@ -3,7 +3,7 @@
 
 #  earthTV Addon
 #
-#      Copyright (C) 2018 Mark Koenig
+#      Copyright (C) 2018,2019,2020 Mark Koenig
 #
 #  This Program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -58,11 +58,12 @@ class EarthTV(object):
 
     def showSelector(self):
 
-        xbmc.log('- main selector -')
+        self.addLog('- main selector -')
         xbmcplugin.setContent(HANDLE, 'movies')
 
         # add live channel
         self.addPictureItem('The World LIVE', PATH + '?playLive=%s' % (BASEURL + COUNTRY), ICON)
+
         # Main channels
         self.addFolderItem('Webcams', PATH + '?region=' + COUNTRY + 'webcams' '&page=1')
 
@@ -85,7 +86,7 @@ class EarthTV(object):
 
     def showRegion(self, region, page):
 
-        xbmc.log('- show region -')
+        self.addLog('- show region -')
         xbmcplugin.setContent(HANDLE, 'movies')
 
         no = int(page)
@@ -95,7 +96,7 @@ class EarthTV(object):
 
         # get channels
         urlpage = BASEURL + region + '/' + page
-        xbmc.log("earthTV: %s" % urlpage, level=xbmc.LOGNOTICE)
+        self.addLog('url %s' % urlpage)
 
         u = urllib2.urlopen(urlpage)
         html = u.read()
@@ -112,44 +113,16 @@ class EarthTV(object):
 
     def showCamera(self, url):
 
-        xbmc.log('- show camera -')
+        self.addLog('- show camera -')
         xbmcplugin.setContent(HANDLE, 'movies')
 
         # get channels
-        xbmc.log("earthTV: %s" % url, level=xbmc.LOGNOTICE)
+        self.addLog("url %s" % url)
 
         r = requests.get(url)
         if r.status_code == requests.codes.ok:
             # page is loaded
             result = r.text
-
-            #actual channel
-            s1 = '<meta.itemprop="embedURL".content="(.*?)"'
-            match = re.search(s1,result)
-            if match is not None:
-                #ref found
-                ref = match.group(1)
-                refs = ref + '&'
-
-                lang = ''
-                loc = ''
-                channel = ''
-                token = ''
-
-                s1 = 'channel=(.*?)&'
-                match = re.search(s1,refs)
-                if match is not None:
-                    channel = match.group(1)
-
-                    # search thumb
-                    s1 = '<meta.itemprop="thumbnailURL".content="(.*?)"'
-                    match = re.search(s1,result)
-                    if match is not None:
-                        thumb = match.group(1)
-                        if('live' in channel):
-                            self.addPictureItem('PLAY\n' + channel, PATH + '?playLive=%s' % url, thumb)
-                        else:
-                            self.addPictureItem('PLAY\n' + channel, PATH + '?play=%s' % url, thumb)
 
             # search channels
             s1 = '<div.class="content">.<a.href="(.*?)".*?<img.src="(.*?)".*?<div.class="title">(.*?)<'
@@ -165,40 +138,41 @@ class EarthTV(object):
 
                 title = 'Channel\n' + channel.strip()
 
-                self.addFolderItem(title, PATH + '?camera=%s' % url, thumb)
+                if('live' in channel.lower()):
+                    self.addPictureItem('PLAY\n' + channel, PATH + '?playLive=%s' % url, thumb)
+                else:
+                    self.addPictureItem('PLAY\n' + channel, PATH + '?play=%s' % url, thumb)
 
         xbmc.executebuiltin('Container.SetViewMode(%d)' % InfoWall)
         xbmcplugin.endOfDirectory(HANDLE)
 
     def play(self, url):
 
+        self.addLog('- play camera -')
+
         url = url[6:]
         url = "http:" + urllib2.quote(url)
 
-        xbmc.log("earthTV: play URL %s" % url, level=xbmc.LOGNOTICE)
+        self.addLog('play URL %s' % url)
 
-        #stop buffering
-        xbmcgui.Window(10000).setProperty('earthURL','')
-        while(xbmcgui.Window(10000).getProperty('earthSeq')<>''):
-            xbmc.sleep(1000)
-            xbmc.log("earthTV: wait stop stream", level=xbmc.LOGNOTICE)
-            xbmcgui.Dialog().notification(ADDON_NAME, 'Stop stream', time=1100)
-
-        xbmcgui.Dialog().notification(ADDON_NAME, 'Query link', time=1000)
-
+        # get page
         r = requests.get(url)
         if r.status_code == requests.codes.ok:
-            result = r.text
-            xbmc.log("earthTV: %s" % 'get page', level=xbmc.LOGNOTICE)
 
-            # find referer
+            result = r.text
+
+            # search for embedURL
             s1 = '<meta.itemprop="embedURL".content="(.*?)"'
             match = re.search(s1,result)
+
             if match is not None:
-                #ref found
+
+                self.addLog('embedURL found')
+
                 ref = match.group(1)
                 refs = ref + '&'
 
+                # get data
                 lang = ''
                 loc = ''
                 channel = ''
@@ -221,83 +195,100 @@ class EarthTV(object):
                 if match is not None:
                     loc = match.group(1)
 
-
+                # set header
                 header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:54.0) Gecko/20100101 Firefox/54.0',
                           'Referer': ref,
                           'Origin': 'http://playercdn.earthtv.com'
                          }
 
+                # playlist link
                 link = 'http://api.earthtv.com/v1/clips?token=' + token + '&language=' + lang + '&limit=30&channel=' + channel + '&location_id=' + loc
 
                 r = requests.get(link, headers=header)
                 if r.status_code == requests.codes.ok:
-                    xbmc.log("earthTV: %s" % 'find playlist', level=xbmc.LOGNOTICE)
-                    result = r.text
 
-                    # init playlist
+                    result = r.text
+                    self.addLog('received playlist')
+
+                    # init kodi playlist
                     pl = xbmc.PlayList(1)
                     pl.clear()
 
+                    # parse playlist
                     jsonObj = json.loads(result)
 
+                    cnt = 1
+
                     for clip in jsonObj:
+
+                        self.addLog('clip ' + str(cnt))
+                        cnt += 1
+
+                        # the play list has several files
                         fi = clip['Files']
 
                         country = clip['Country']
                         city =  clip['City']
                         desc = clip['Description']
                         time = clip['LoT']
+
                         # 2018-02-05T19:46:22+02:00
                         dt = iso8601.parse_date(time)
 
+                        # init resolution
                         url = ''
                         resolution = 0
 
+                        # we search the max resolution
                         for f in fi:
                             if 'Video' in f['Type']:
-                                if(f['W']>resolution):
+                                # we want the highest resolution
+                                if(f['W'] >= resolution):
                                     resolution = f['W']
+
+                        self.addLog('select resolution %s' % resolution)
+
+                        for f in fi:
+
+                            # here we search all files of one clip
+
+                            # we want only videos
+                            if 'Video' in f['Type']:
+
+                                # we want the highest resolution
+                                if(f['W'] == resolution):
+                                    resolution = f['W']
+
                                     url = 'http://cdn.earthtv.com/' + f['File'] + '?token=' + token
 
-                        if(resolution <> 0):
-                            listitem = xbmcgui.ListItem(country + '/' + city)
+                                    listitem = xbmcgui.ListItem(country + '/' + city)
 
-                            txt = country + ' / ' + city + ' '
-                            txt = txt + '%02i:%02i' % (dt.hour, dt.minute)+ 'h / ' + '%02i.%02i.%04i' % (dt.day, dt.month, dt.year)
-                            if desc is not None:
-                                txt = txt + '\n' + desc
+                                    txt = country + ' / ' + city + ' '
+                                    txt = txt + '%02i:%02i' % (dt.hour, dt.minute)+ 'h / ' + '%02i.%02i.%04i' % (dt.day, dt.month, dt.year)
+                                    if desc is not None:
+                                        txt = txt + '\n' + desc
 
-                            listitem.setInfo('video', { 'plot': txt })
-                            listitem.setArt({'thumb': ICON})
+                                    listitem.setInfo('video', { 'plot': txt })
+                                    listitem.setArt({'thumb': ICON})
 
-                            #xbmc.log("earthTV: %s" % url, level=xbmc.LOGNOTICE)
-                            pl.add(url, listitem)
+                                    self.addLog('add file %s' % f['File'])
+                                    pl.add(url, listitem)
+                                    break
 
                     if(pl.size() > 0):
                         xbmc.Player().play(pl)
+                        self.addLog('start play')
                     else:
                         xbmcgui.Dialog().notification(ADDON_NAME, 'Sorry, no PLAYLIST', time=3000)
 
-
     def playLive(self, url):
 
-        xbmc.log("earthTV: show URL %s" % url, level=xbmc.LOGNOTICE)
-        xbmc.executebuiltin("ActivateWindow(busydialog)")
+        self.addLog('- play live camera -')
 
         url = url[6:]
         url = "https:" + urllib2.quote(url)
 
-        #stop buffering
-        xbmcgui.Window(10000).setProperty('earthURL','')
-        while(xbmcgui.Window(10000).getProperty('earthSeq')<>''):
-            xbmc.sleep(1000)
-            xbmc.log("earthTV: wait stop stream", level=xbmc.LOGNOTICE)
-            xbmcgui.Dialog().notification(ADDON_NAME, 'Stop stream', time=1100)
-
-        xbmcgui.Dialog().notification(ADDON_NAME, 'Query link', time=1000)
-
-
-        url = 'https://www.earthtv.com/de'
+        self.addLog("playLive: URL %s" % url)
 
         r = requests.get(url)
         if r.status_code == requests.codes.ok:
@@ -308,7 +299,7 @@ class EarthTV(object):
             if match is not None:
                 token = match.group(1)
 
-                xbmc.log("earthTV: token %s" % token, level=xbmc.LOGNOTICE)
+                self.addLog('token %s' % token)
 
                 r = requests.get('https://dapi-de.earthtv.com/api/v1/media.getPlayerConfig?playerToken=' +  token)
                 if r.status_code == requests.codes.ok:
@@ -317,7 +308,7 @@ class EarthTV(object):
                     jObj = json.loads(result)
                     playlist = jObj['streamUris']['hls']
 
-                    xbmc.log("earthTV: playlist %s" % playlist, level=xbmc.LOGNOTICE)
+                    self.addLog('playlist %s' % playlist)
 
                     # init playlist
                     pl = xbmc.PlayList(1)
@@ -330,9 +321,10 @@ class EarthTV(object):
                     playitem.setContentLookup(False)
 
                     pl.add(playlist,playitem)
-
                     xbmc.Player().play(pl)
 
+                else:
+                    xbmcgui.Dialog().notification(ADDON_NAME, 'Sorry, no PLAYLIST', time=3000)
 
 #### some functions ####
 
@@ -352,6 +344,10 @@ class EarthTV(object):
                           'icon': thumb })
 
         xbmcplugin.addDirectoryItem(HANDLE, url, list_item, False)
+
+    def addLog(self, message):
+
+        xbmc.log("earthTV: %s" % message, level=xbmc.LOGNOTICE)
 
 #### main entry point ####
 
@@ -402,11 +398,11 @@ if __name__ == '__main__':
 
         if PARAMS.has_key('playLive'):
             iArchive.playLive(PARAMS['playLive'][0])
-        if PARAMS.has_key('play'):
+        elif PARAMS.has_key('play'):
             iArchive.play(PARAMS['play'][0])
-        if PARAMS.has_key('camera'):
+        elif PARAMS.has_key('camera'):
             iArchive.showCamera(PARAMS['camera'][0])
-        if PARAMS.has_key('categories'):
+        elif PARAMS.has_key('categories'):
             iArchive.showCategory(PARAMS['categories'][0])
         elif PARAMS.has_key('region'):
             iArchive.showRegion(PARAMS['region'][0],PARAMS['page'][0] )
