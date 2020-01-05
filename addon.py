@@ -347,7 +347,8 @@ class EarthTV(object):
 
     def addLog(self, message):
 
-        xbmc.log("earthTV: %s" % message, level=xbmc.LOGNOTICE)
+        if DEBUG_PLUGIN:
+            xbmc.log("earthTV: %s" % message, level=xbmc.LOGNOTICE)
 
 #### main entry point ####
 
@@ -366,8 +367,7 @@ if __name__ == '__main__':
     ICON = os.path.join(ADDON.getAddonInfo('path'), 'icon.png')
     BACKG = os.path.join(ADDON.getAddonInfo('path'), 'nasa.jpg')
 
-    DEBUG_PLUGIN = True
-    DEBUG_HTML = False
+    DEBUG_PLUGIN = False
     USE_THUMBS = True
 
     ERROR_MESSAGE1 = ADDON.getLocalizedString(30150)
@@ -376,8 +376,6 @@ if __name__ == '__main__':
 
     if(str(xbmcplugin.getSetting(HANDLE, 'debug')) == 'true'):
         DEBUG_PLUGIN = True
-    if(str(xbmcplugin.getSetting(HANDLE, 'debugHTML')) == 'true'):
-        DEBUG_HTML = True
 
     SITE = xbmcplugin.getSetting(HANDLE, 'siteVersion')
 
