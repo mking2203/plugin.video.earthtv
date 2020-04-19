@@ -1,9 +1,9 @@
-#!/usr/bin/python
+﻿#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
 #  earthTV Addon
 #
-#      Copyright (C) 2018,2019,2020 Mark Koenig
+#      Copyright (C) 2018,2019,2020 Mark König
 #
 #  This Program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
