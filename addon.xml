@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<addon id="plugin.video.earthtv" version="1.0.8" name="earthTV" provider-name="Mark König">
+<addon id="plugin.video.earthtv" version="3.0.1" name="earthTV" provider-name="Mark König">
     <requires>
-        <import addon="xbmc.python" version="2.14.0"/>
+        <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.requests" version="2.9.1"/>
-        <import addon="script.module.buggalo" version="1.1.2"/>
     </requires>
     <extension point="xbmc.python.pluginsource" library="addon.py">
         <provides>video</provides>
@@ -11,6 +10,7 @@
     <extension point="xbmc.addon.metadata">
         <summary lang="en">earthTV</summary>
         <description lang="en">The earthTV cameras show impressions from different locations: sizzling metropolises, impressive landscapes, famous sights and more.</description>
+		<description lang="de">Die earthTV-Kameras zeigen Eindrücke von verschiedenen Orten: pulsiernde Metropolen, beeindruckende Landschaften, berühmte Sehenswürdigkeiten und vieles mehr.</description>
         <license>GPL 2.0</license>
         <platform>all</platform>
         <language>en</language>
@@ -26,25 +26,8 @@
             <screenshot>resources/screenshot004.jpg</screenshot>
         </assets>
 		<news>
-[B]Version 1.0.8 - 2020-01-01[/B]
-- website change / add hls streaming
-- removed service for HLS streaming[CR]
-[B]Version 1.0.7 - 2018-05-31[/B]
-- add description for videos and more checks[CR]
-[B]Version 1.0.6 - 2018-05-07[/B]
-- add selector for regions[CR]
-[B]Version 1.0.5 - 2018-05-03[/B]
-- primary rewrote stream logic[CR]
-[B]Version 1.0.4 - 2017-02-11[/B]
-- fix for international changes[CR]
-[B]Version 1.0.3 - 2017-02-11[/B]
-- fix for website changes[CR]
-[B]Version 1.0.2 - 2016-09-20[/B]
-- fixed live channel, alternate parsing[CR]
-[B]Version 1.0.1 - 2016-09-15[/B]
-- fixed live channel[CR]
-[B]Version 1.0.0 - 2016-04-21[/B]
-- pre release (beta)[CR]
+[B]Version 3.0.1 - 2021-01-29[/B]
+- new Matrix version
 		</news>
     </extension>
 </addon>

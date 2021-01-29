@@ -3,7 +3,7 @@
 
 #  earthTV Addon
 #
-#      Copyright (C) 2018,2019,2020 Mark König
+#      Copyright (C) 2018-2021 Mark König
 #
 #  This Program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -25,13 +25,9 @@ import os
 import sys
 import iso8601
 import urllib
-import urllib2
-import urlparse
 import re
 import requests
-from HTMLParser import HTMLParser
-
-import buggalo
+from html.parser import HTMLParser
 
 import json
 
@@ -98,8 +94,8 @@ class EarthTV(object):
         urlpage = BASEURL + region + '/' + page
         self.addLog('url %s' % urlpage)
 
-        u = urllib2.urlopen(urlpage)
-        html = u.read()
+        u = requests.get(urlpage)
+        html = u.text
         u.close()
 
         for m in re.finditer('<div.class="place.video-thumb">.*?href="(?P<href>[^\"]*)".*?src="(?P<src>[^\"]*)".*?alt="(?P<alt>[^\"]*)".*?<\/div>', html, re.DOTALL):
@@ -151,7 +147,7 @@ class EarthTV(object):
         self.addLog('- play camera -')
 
         url = url[6:]
-        url = "http:" + urllib2.quote(url)
+        url = "http:" + urllib.parse.quote(url)
 
         self.addLog('play URL %s' % url)
 
@@ -283,10 +279,10 @@ class EarthTV(object):
 
     def playLive(self, url):
 
-        self.addLog('- play live camera -')
+        self.addLog('- play live camera -' + url)
 
         url = url[6:]
-        url = "https:" + urllib2.quote(url)
+        url = "https:" + urllib.parse.quote(url)
 
         self.addLog("playLive: URL %s" % url)
 
@@ -338,7 +334,7 @@ class EarthTV(object):
 
     def addPictureItem(self, title, url, thumb):
 
-        list_item = xbmcgui.ListItem(label=title, thumbnailImage=thumb)
+        list_item = xbmcgui.ListItem(label=title)
 
         list_item.setArt({'thumb': thumb,
                           'icon': thumb })
@@ -348,7 +344,7 @@ class EarthTV(object):
     def addLog(self, message):
 
         if DEBUG_PLUGIN:
-            xbmc.log("earthTV: %s" % message, level=xbmc.LOGNOTICE)
+            xbmc.log("earthTV: %s" % message, level=xbmc.LOGDEBUG)
 
 #### main entry point ####
 
@@ -357,12 +353,12 @@ if __name__ == '__main__':
     ADDON = xbmcaddon.Addon()
     ADDON_NAME = ADDON.getAddonInfo('name')
 
-    PROFILE = xbmc.translatePath(ADDON.getAddonInfo('profile')).decode('utf-8')
+    PROFILE = xbmc.translatePath(ADDON.getAddonInfo('profile'))
     VID = os.path.join(PROFILE, "video.ts")
 
     PATH = sys.argv[0]
     HANDLE = int(sys.argv[1])
-    PARAMS = urlparse.parse_qs(sys.argv[2][1:])
+    PARAMS = urllib.parse.parse_qs(sys.argv[2][1:])
 
     ICON = os.path.join(ADDON.getAddonInfo('path'), 'icon.png')
     BACKG = os.path.join(ADDON.getAddonInfo('path'), 'nasa.jpg')
@@ -391,20 +387,20 @@ if __name__ == '__main__':
     elif (SITE == '4'):
         COUNTRY='/ar/'
 
-    try:
-        iArchive = EarthTV()
+    #try:
+    iArchive = EarthTV()
 
-        if PARAMS.has_key('playLive'):
-            iArchive.playLive(PARAMS['playLive'][0])
-        elif PARAMS.has_key('play'):
-            iArchive.play(PARAMS['play'][0])
-        elif PARAMS.has_key('camera'):
-            iArchive.showCamera(PARAMS['camera'][0])
-        elif PARAMS.has_key('categories'):
-            iArchive.showCategory(PARAMS['categories'][0])
-        elif PARAMS.has_key('region'):
-            iArchive.showRegion(PARAMS['region'][0],PARAMS['page'][0] )
-        else:
-            iArchive.showSelector()
-    except Exception:
-        buggalo.onExceptionRaised()
+    if ('playLive' in PARAMS):
+        iArchive.playLive(PARAMS['playLive'][0])
+    elif ('play' in PARAMS):
+        iArchive.play(PARAMS['play'][0])
+    elif ('camera' in PARAMS):
+        iArchive.showCamera(PARAMS['camera'][0])
+    elif ('categories' in PARAMS):
+        iArchive.showCategory(PARAMS['categories'][0])
+    elif ('region' in PARAMS):
+        iArchive.showRegion(PARAMS['region'][0],PARAMS['page'][0] )
+    else:
+        iArchive.showSelector()
+    #except Exception:
+        #pass
